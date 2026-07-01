@@ -1,0 +1,81 @@
+generator client {
+
+  provider = "prisma-client-js"
+
+}
+
+
+
+datasource db {
+
+  provider = "sqlite"
+
+  url      = env("DATABASE_URL")
+
+}
+
+
+
+/// 故事实体 - Demo CRUD
+
+model Story {
+
+  id        Int      @id @default(autoincrement())
+
+  title     String /// 标题
+
+  outline   String /// 大纲
+
+  createdAt DateTime @default(now()) /// 创建时间
+
+  updatedAt DateTime @updatedAt /// 更新时间
+
+  chapters  Chapter[]
+
+}
+
+
+
+/// 章节实体 - Demo CRUD
+
+model Chapter {
+
+  id        Int      @id @default(autoincrement())
+
+  storyId   Int      /// 所属故事 ID
+
+  parentId  Int?     /// 父章节 ID（可选，用于章节树）
+
+  title     String   /// 章节标题
+
+  outline   String   /// 细纲
+
+  content   String   @default("") /// 章节内容
+
+  /// [2026-06-29] 同级排序权重，越小越靠前（卷与卷之间、同一卷内章与章之间各自独立排序）
+
+  sortOrder Int      @default(0)
+
+  createdAt DateTime @default(now()) /// 创建时间
+
+  updatedAt DateTime @updatedAt /// 更新时间
+
+
+
+  story    Story     @relation(fields: [storyId], references: [id], onDelete: Cascade)
+
+  parent   Chapter?  @relation("ChapterTree", fields: [parentId], references: [id], onDelete: Cascade)
+
+  children Chapter[] @relation("ChapterTree")
+
+
+
+  @@index([storyId])
+
+  @@index([parentId])
+
+  @@index([storyId, parentId, sortOrder])
+
+}
+
+

@@ -1,0 +1,54 @@
+.story-page {
+  width: 100%;
+  min-height: 100%;
+  background-color: #f0f2f5;
+}
+
+.story-list {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  padding: 16px;
+}
+
+.story-item {
+  height: 160px;
+  cursor: pointer;
+}
+
+.story-item.ant-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.story-item .ant-card-head {
+  flex-shrink: 0;
+}
+
+.story-item .ant-card-body {
+  flex: 1;
+  overflow: hidden;
+}
+
+.story-item-backgroundStory {
+  color: rgba(0, 0, 0, 0.65);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.story-item-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #fff;
+  border: 1px dashed #d9d9d9;
+  border-radius: 8px;
+}
+
+.story-item-add-icon {
+  font-size: 32px;
+  color: rgba(0, 0, 0, 0.45);
+}

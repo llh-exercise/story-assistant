@@ -1,0 +1,35 @@
+.story-write-page {
+  display: flex;
+  flex-direction: row;
+  height: 100%;
+  overflow: hidden;
+}
+
+.story-page-left {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  width: 300px;
+
+  .story-page-left-top {
+    flex-shrink: 0;
+    height: 64px;
+  }
+  .story-page-left-content {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+}
+
+.story-page-center {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.story-page-right {
+  width: 200px;
+}

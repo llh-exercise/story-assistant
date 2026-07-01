@@ -1,0 +1,42 @@
+.story-juan {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.story-juan-editor {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  padding: 8px 8px 20px 8px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.story-juan-actions {
+  flex-shrink: 0;
+  height: 64px;
+  padding: 8px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  flex-direction: row-reverse;
+}
+
+.story-juan-editor .ant-input-textarea-affix-wrapper {
+  flex: 1;
+  min-height: 0;
+}
+
+.story-juan-textarea {
+  resize: none;
+}
+
+.story-juan-editor .story-juan-textarea {
+  height: 100% !important;
+  min-height: 0 !important;
+}
