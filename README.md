@@ -77,7 +77,11 @@ npm run dev
 
 ### 环境变量
 
-在 `backend/.env` 中配置（可参考下方示例自行创建）：
+在 `backend/` 目录复制示例配置并填写：
+
+```bash
+cp backend/.env.example backend/.env
+```
 
 ```env
 DATABASE_URL="file:./dev.db"
