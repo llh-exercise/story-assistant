@@ -1,9 +1,10 @@
 // import { Suspense } from 'react';
-import { createBrowserRouter } from 'react-router-dom';
+import { createBrowserRouter, Navigate } from 'react-router-dom';
 // import { Spin } from 'antd';
 import MainLayout from '../layouts/MainLayout';
 import StoryListPage from '../pages/story/storyList/index';
 import ConfigPage from '../pages/config/index';
+import ChatPage from '../pages/config/chat/index';
 import StoryPage from '../pages/story/storyWrite/index';
 
 // function PageLoading() {
@@ -34,8 +35,17 @@ export const router = createBrowserRouter([
     element: <MainLayout />,
     children: [
       {
-        index: true,
         element: <ConfigPage />,
+        children: [
+          {
+            index: true,
+            element: <Navigate to="chat" replace />,
+          },
+          {
+            path: 'chat',
+            element: <ChatPage />,
+          },
+        ],
       },
     ],
   },

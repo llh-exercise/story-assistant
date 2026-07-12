@@ -11,6 +11,6 @@ export class CreateStoryDto {
   @ApiProperty({ description: '大纲', example: '这是一个精彩的故事大纲...' })
   @IsString()
   @IsNotEmpty({ message: '大纲不能为空' })
-  @MaxLength(2000, { message: '大纲最多2000个字符' })
+  @MaxLength(10000, { message: '大纲最多10000个字符' })
   outline!: string;
 }

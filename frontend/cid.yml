@@ -1,0 +1,270 @@
+include:
+  - local: '/templates/.web_common_jobs.yml'
+
+stages:
+  - lint-check
+  - merge-request-check
+  - deploy-dev
+  - deploy-test
+  - deploy-prerelease
+  - deploy-production
+
+lint-check-node18:
+  extends: .lint-check-node18
+  stage: lint-check
+  rules:
+    - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE =~ /^(push|web)$/ && $NODE_VERSION == "18"
+      allow_failure: false
+
+lint-check-node16:
+  extends: .lint-check-node16
+  stage: lint-check
+  rules:
+    - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE =~ /^(push|web)$/ && $NODE_VERSION == "16"
+      allow_failure: false
+
+merge-request-check-node18:
+  extends: .merge-request-check-node18
+  stage: merge-request-check
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == $CI_DEFAULT_BRANCH && $NODE_VERSION == "18"
+      allow_failure: false
+
+merge-request-check-node16:
+  extends: .merge-request-check-node16
+  stage: merge-request-check
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == $CI_DEFAULT_BRANCH && $NODE_VERSION == "16"
+      allow_failure: false
+
+deploy-dev-node18:
+  extends: .deploy-dev-node18
+  stage: deploy-dev
+  rules:
+    - if: $QIANKUN_SUBAPP != "true" && $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE =~ /^(push|web)$/ && $CI_COMMIT_MESSAGE =~ /release:yes/ && $NODE_VERSION == "18" 
+      when: manual
+      allow_failure: false
+  variables:
+    WORKSPACE_DIR: "/home/crcc121/oidc-project/web2/crcc-frontend-workspace"
+  needs:
+    - job: lint-check-node18
+      artifacts: false
+
+deploy-dev-node16:
+  extends: .deploy-dev-node16
+  stage: deploy-dev
+  rules:
+    - if: $QIANKUN_SUBAPP != "true" && $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE =~ /^(push|web)$/ && $CI_COMMIT_MESSAGE =~ /release:yes/ && $NODE_VERSION == "16"
+      when: manual
+      allow_failure: false
+  variables:
+    WORKSPACE_DIR: "/home/crcc121/oidc-project/web2/crcc-frontend-workspace"
+  needs:
+    - job: lint-check-node16
+      artifacts: false
+
+deploy-dev-qiankun-subapp-node18:
+  extends: .deploy-dev-node18
+  stage: deploy-dev
+  rules:
+    - if: $QIANKUN_SUBAPP == "true" && $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE =~ /^(push|web)$/ && $CI_COMMIT_MESSAGE =~ /release:yes/ && $NODE_VERSION == "18"
+      when: manual
+      allow_failure: false
+  variables:
+    WORKSPACE_DIR: "/home/crcc121/oidc-project/web2/crcc-frontend-workspace/subapp"
+  needs:
+    - job: lint-check-node18
+      artifacts: false
+
+deploy-dev-qiankun-subapp-node16:
+  extends: .deploy-dev-node16
+  stage: deploy-dev
+  rules:
+    - if: $QIANKUN_SUBAPP == "true" && $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE =~ /^(push|web)$/ && $CI_COMMIT_MESSAGE =~ /release:yes/ && $NODE_VERSION == "16"
+      when: manual
+      allow_failure: false
+  variables:
+    WORKSPACE_DIR: "/home/crcc121/oidc-project/web2/crcc-frontend-workspace/subapp"
+  needs:
+    - job: lint-check-node16
+      artifacts: false
+
+deploy-test-node18:
+  extends: .deploy-test-node18
+  stage: deploy-test
+  rules:
+    - if: $QIANKUN_SUBAPP != "true" && $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE =~ /^(push|web)$/ && $CI_COMMIT_MESSAGE =~ /release:yes/ && $NODE_VERSION == "18"
+      when: manual
+      allow_failure: false
+  variables:
+    WORKSPACE_DIR: "/home/crcc121/oidc-project/web2/crcc-frontend-workspace"
+  needs:
+    - job: lint-check-node18
+      artifacts: false
+    - job: deploy-dev-node18
+      artifacts: false
+
+deploy-test-node16:
+  extends: .deploy-test-node16
+  stage: deploy-test
+  rules:
+    - if: $QIANKUN_SUBAPP != "true" && $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE =~ /^(push|web)$/ && $CI_COMMIT_MESSAGE =~ /release:yes/ && $NODE_VERSION == "16"
+      when: manual
+      allow_failure: false
+  variables:
+    WORKSPACE_DIR: "/home/crcc121/oidc-project/web2/crcc-frontend-workspace"
+  needs:
+    - job: lint-check-node16
+      artifacts: false
+    - job: deploy-dev-node16
+      artifacts: false
+
+deploy-test-qiankun-subapp-node18:
+  extends: .deploy-test-node18
+  stage: deploy-test
+  rules:
+    - if: $QIANKUN_SUBAPP == "true" && $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE =~ /^(push|web)$/ && $CI_COMMIT_MESSAGE =~ /release:yes/ && $NODE_VERSION == "18"
+      when: manual
+      allow_failure: false
+  variables:
+    WORKSPACE_DIR: "/home/crcc121/oidc-project/web2/crcc-frontend-workspace/subapp"
+  needs:
+    - job: lint-check-node18
+      artifacts: false
+    - job: deploy-dev-qiankun-subapp-node18
+      artifacts: false
+
+deploy-test-qiankun-subapp-node16:
+  extends: .deploy-test-node16
+  stage: deploy-test
+  rules:
+    - if: $QIANKUN_SUBAPP == "true" && $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE =~ /^(push|web)$/ && $CI_COMMIT_MESSAGE =~ /release:yes/ && $NODE_VERSION == "16"
+      when: manual
+      allow_failure: false
+  variables:
+    WORKSPACE_DIR: "/home/crcc121/oidc-project/web2/crcc-frontend-workspace/subapp"
+  needs:
+    - job: lint-check-node16
+      artifacts: false
+    - job: deploy-dev-qiankun-subapp-node16
+      artifacts: false
+
+deploy-prerelease-node18:
+  extends: .deploy-prerelease-node18
+  stage: deploy-prerelease
+  rules:
+    - if: $QIANKUN_SUBAPP != "true" && $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE =~ /^(push|web)$/ && $CI_COMMIT_MESSAGE =~ /release:yes/ && $NODE_VERSION == "18"
+      when: manual
+      allow_failure: false
+  variables:
+    WORKSPACE_DIR: "/home/crcc121/web2/crcc-frontend-workspace"
+  needs:
+    - job: lint-check-node18
+      artifacts: false
+    - job: deploy-test-node18
+      artifacts: false
+
+deploy-prerelease-node16:
+  extends: .deploy-prerelease-node16
+  stage: deploy-prerelease
+  rules:
+    - if: $QIANKUN_SUBAPP != "true" && $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE =~ /^(push|web)$/ && $CI_COMMIT_MESSAGE =~ /release:yes/ && $NODE_VERSION == "16"
+      when: manual
+      allow_failure: false
+  variables:
+    WORKSPACE_DIR: "/home/crcc121/web2/crcc-frontend-workspace"
+  needs:
+    - job: lint-check-node16
+      artifacts: false
+    - job: deploy-test-node16
+      artifacts: false
+
+deploy-prerelease-qiankun-subapp-node18:
+  extends: .deploy-prerelease-node18
+  stage: deploy-prerelease
+  rules:
+    - if: $QIANKUN_SUBAPP == "true" && $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE =~ /^(push|web)$/ && $CI_COMMIT_MESSAGE =~ /release:yes/ && $NODE_VERSION == "18"
+      when: manual
+      allow_failure: false
+  variables:
+    WORKSPACE_DIR: "/home/crcc121/web2/crcc-frontend-workspace/subapp"
+  needs:
+    - job: lint-check-node18
+      artifacts: false
+    - job: deploy-test-qiankun-subapp-node18
+      artifacts: false
+
+deploy-prerelease-qiankun-subapp-node16:
+  extends: .deploy-prerelease-node16
+  stage: deploy-prerelease
+  rules:
+    - if: $QIANKUN_SUBAPP == "true" && $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE =~ /^(push|web)$/ && $CI_COMMIT_MESSAGE =~ /release:yes/ && $NODE_VERSION == "16"
+      when: manual
+      allow_failure: false
+  variables:
+    WORKSPACE_DIR: "/home/crcc121/web2/crcc-frontend-workspace/subapp"
+  needs:
+    - job: lint-check-node16
+      artifacts: false
+    - job: deploy-test-qiankun-subapp-node16
+      artifacts: false
+
+deploy-production-node18:
+  extends: .deploy-production-node18
+  stage: deploy-production
+  rules:
+    - if: $QIANKUN_SUBAPP != "true" && $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE =~ /^(push|web)$/ && $CI_COMMIT_MESSAGE =~ /release:yes/ && $NODE_VERSION == "18"
+      when: manual
+      allow_failure: false
+  variables:
+    WORKSPACE_DIR: "/home/crcc121/oidc-project/web2/crcc-frontend-workspace"
+  needs:
+    - job: lint-check-node18
+      artifacts: false
+    - job: deploy-prerelease-node18
+      artifacts: false
+
+deploy-production-node16:
+  extends: .deploy-production-node16
+  stage: deploy-production
+  rules:
+    - if: $QIANKUN_SUBAPP != "true" && $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE =~ /^(push|web)$/ && $CI_COMMIT_MESSAGE =~ /release:yes/ && $NODE_VERSION == "16"
+      when: manual
+      allow_failure: false
+  variables:
+    WORKSPACE_DIR: "/home/crcc121/oidc-project/web2/crcc-frontend-workspace"
+  needs:
+    - job: lint-check-node16
+      artifacts: false
+    - job: deploy-prerelease-node16
+      artifacts: false
+
+deploy-production-qiankun-subapp-node18:
+  extends: .deploy-production-node18
+  stage: deploy-production
+  rules:
+    - if: $QIANKUN_SUBAPP == "true" && $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE =~ /^(push|web)$/ && $CI_COMMIT_MESSAGE =~ /release:yes/ && $NODE_VERSION == "18"
+      when: manual
+      allow_failure: false
+  variables:
+    WORKSPACE_DIR: "/home/crcc121/oidc-project/web2/crcc-frontend-workspace/subapp"
+  needs:
+    - job: lint-check-node18
+      artifacts: false
+    - job: deploy-prerelease-qiankun-subapp-node18
+      artifacts: false
+
+deploy-production-qiankun-subapp-node16:
+  extends: .deploy-production-node16
+  stage: deploy-production
+  rules:
+    - if: $QIANKUN_SUBAPP == "true" && $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE =~ /^(push|web)$/ && $CI_COMMIT_MESSAGE =~ /release:yes/ && $NODE_VERSION == "16"
+      when: manual
+      allow_failure: false
+  variables:
+    WORKSPACE_DIR: "/home/crcc121/oidc-project/web2/crcc-frontend-workspace/subapp"
+  needs:
+    - job: lint-check-node16
+      artifacts: false
+    - job: deploy-prerelease-qiankun-subapp-node16
+      artifacts: false

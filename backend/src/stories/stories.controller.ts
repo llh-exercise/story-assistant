@@ -24,10 +24,22 @@ export class StoriesController {
     return this.storiesService.findAll();
   }
 
+  @Get(':id/generation-status')
+  @ApiOperation({ summary: '获取故事目录生成状态' })
+  getGenerationStatus(@Param('id', ParseIntPipe) id: number) {
+    return this.storiesService.getGenerationStatus(id);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: '获取故事详情' })
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.storiesService.findOne(id);
+  }
+
+  @Post(':id/retry-generate-chapters')
+  @ApiOperation({ summary: '重新生成章节目录（整本，仅失败时可调用）' })
+  retryGenerateChapters(@Param('id', ParseIntPipe) id: number) {
+    return this.storiesService.retryGenerateChapterList(id);
   }
 
   @Post()
@@ -50,4 +62,5 @@ export class StoriesController {
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.storiesService.remove(id);
   }
+
 }

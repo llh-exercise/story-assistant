@@ -3,7 +3,10 @@ import type { Chapter } from '../types/chapter';
 import { ApiResponse } from '../types/request';
 
 export type ChapterPayload = Pick<Chapter, 'storyId' | 'title' | 'outline'> &
-  Partial<Pick<Chapter, 'content' | 'parentId' | 'sortOrder'>>;
+  Partial<Pick<Chapter, 'content' | 'parentId' | 'sortOrder'>> & {
+    /** 插在该同级节点之后 */
+    afterId?: number;
+  };
 
 export type UpdateChapterPayload = Partial<ChapterPayload>;
 

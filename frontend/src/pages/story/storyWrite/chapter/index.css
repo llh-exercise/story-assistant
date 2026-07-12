@@ -45,12 +45,33 @@
   line-height: 28px;
 }
 
+.chapter-node-title__actions {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.chapter-node-title:hover .chapter-node-title__actions {
+  opacity: 1;
+}
+
 .chapter-node-title__btn {
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   padding: 0;
+  color: rgba(0, 0, 0, 0.45);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.chapter-node-title__btn:hover {
+  color: #1677ff;
+  background: rgba(0, 0, 0, 0.04);
 }

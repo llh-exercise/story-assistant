@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { DeepSeekService } from '../ai/deepseek.service';
 import { CreateChapterDto } from './dto/create-chapter.dto';
@@ -11,7 +16,10 @@ import { ChapterContentStreamResult } from '../ai/deepseek.service';
 
 @Injectable()
 export class ChapterService {
-  constructor(private readonly prisma: PrismaService, private readonly deepSeekService: DeepSeekService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly deepSeekService: DeepSeekService,
+  ) {}
 
   async findAllByStoryId(storyId: number) {
     // [2026-06-29] 旧数据 sortOrder 全为 0 时，按 createdAt 回填一次
@@ -34,20 +42,58 @@ export class ChapterService {
     return chapter;
   }
 
+  /**
+   * 创建卷/章。
+   * - 传 afterId：插到该同级节点后面，事务内将后续兄弟 sortOrder +1
+   * - 不传：追加到同级末尾（或使用显式 sortOrder）
+   */
   async create(dto: CreateChapterDto) {
-    const parentId = dto.parentId ?? null;
-    const sortOrder =
-      dto.sortOrder ?? (await this.getNextSortOrder(dto.storyId, parentId));
+    return this.prisma.$transaction(async (tx) => {
+      let parentId: number | null;
+      let sortOrder: number;
 
-    return this.prisma.chapter.create({
-      data: {
-        storyId: dto.storyId,
-        parentId,
-        title: dto.title,
-        outline: dto.outline,
-        content: dto.content ?? '',
-        sortOrder,
-      },
+      if (dto.afterId != null) {
+        const after = await tx.chapter.findUnique({
+          where: { id: dto.afterId },
+        });
+        if (!after) {
+          throw new NotFoundException(`参照节点 #${dto.afterId} 不存在`);
+        }
+        if (after.storyId !== dto.storyId) {
+          throw new BadRequestException('参照节点不属于当前故事');
+        }
+
+        parentId = after.parentId;
+        sortOrder = after.sortOrder + 1;
+
+        // 同级后续节点整体后移，为新节点腾出位置
+        await tx.chapter.updateMany({
+          where: {
+            storyId: dto.storyId,
+            parentId,
+            sortOrder: { gte: sortOrder },
+          },
+          data: {
+            sortOrder: { increment: 1 },
+          },
+        });
+      } else {
+        parentId = dto.parentId ?? null;
+        sortOrder =
+          dto.sortOrder ??
+          (await this.getNextSortOrder(tx, dto.storyId, parentId));
+      }
+
+      return tx.chapter.create({
+        data: {
+          storyId: dto.storyId,
+          parentId,
+          title: dto.title,
+          outline: dto.outline,
+          content: dto.content ?? '',
+          sortOrder,
+        },
+      });
     });
   }
 
@@ -66,10 +112,11 @@ export class ChapterService {
 
   /** [2026-06-29] 获取同级下一个 sortOrder（追加到末尾） */
   private async getNextSortOrder(
+    client: Prisma.TransactionClient,
     storyId: number,
     parentId: number | null,
   ): Promise<number> {
-    const result = await this.prisma.chapter.aggregate({
+    const result = await client.chapter.aggregate({
       where: { storyId, parentId },
       _max: { sortOrder: true },
     });
@@ -103,7 +150,7 @@ export class ChapterService {
     storyId: number,
     chapterId: number,
     chapterTitle: string,
-    chapterOutline: string
+    chapterOutline: string,
   ): Promise<ChapterContentStreamResult> {
     return this.deepSeekService.streamChapterContent(
       storyId,

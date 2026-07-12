@@ -11,7 +11,7 @@ export default function MainLayout() {
     navigate('/');
   }
   const gotoConfig = () => {
-    navigate('/config');
+    navigate('/config/chat');
   }
   return (
     <Layout style={{ height: '100vh' }}>

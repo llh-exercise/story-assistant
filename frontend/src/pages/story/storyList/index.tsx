@@ -1,12 +1,23 @@
 import './index.css';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PlusOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons';
-import { Card, Modal, message } from 'antd';
-import { Story } from '../../../types/story';
+import { Card, Modal, message, Tag } from 'antd';
+import { Story, StoryGenerationStatus } from '../../../types/story';
 import AddStoryDialog from './addStoryDialog';
 import { storyApi } from '../../../api/story';
 import { ApiResponse } from '../../../types/request';
+
+const GENERATION_STATUS_META: Record<
+  StoryGenerationStatus,
+  { text: string; color: string } | null
+> = {
+  idle: null,
+  pending: { text: '等待生成', color: 'default' },
+  running: { text: '目录生成中', color: 'processing' },
+  done: null,
+  failed: { text: '生成失败', color: 'error' },
+};
 
 const StoryListPage: React.FC = () => {
   const navigate = useNavigate();
@@ -24,7 +35,7 @@ const StoryListPage: React.FC = () => {
     setDialogOpen(true);
   };
 
-  const loadList = async () => {
+  const loadList = useCallback(async () => {
     try {
       const res: ApiResponse<Story[]> = await storyApi.getList();
       if (res.code === 0 && res.data) {
@@ -33,11 +44,11 @@ const StoryListPage: React.FC = () => {
     } catch (error) {
       console.error(error);
     }
-  };
+  }, []);
 
   useEffect(() => {
     void loadList();
-  }, []);
+  }, [loadList]);
 
   const removeStory = (id: number) => {
     Modal.confirm({
@@ -76,33 +87,44 @@ const StoryListPage: React.FC = () => {
     <>
       <div className="story-page">
         <div className="story-list">
-          {storyList.map((story) => (
-            <Card
-              key={story.id}
-              className="story-item"
-              title={story.title}
-              variant="borderless"
-              onClick={() => handleStoryClick(story.id!)}
-              actions={[
-                <DeleteOutlined
-                  key="remove"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    removeStory(story.id!);
-                  }}
-                />,
-                <EditOutlined
-                  key="edit"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    editStory(story.id!);
-                  }}
-                />,
-              ]}
-            >
-              <div className="story-item-outline">{story.outline}</div>
-            </Card>
-          ))}
+          {storyList.map((story) => {
+            const statusMeta = story.generationStatus
+              ? GENERATION_STATUS_META[story.generationStatus]
+              : null;
+
+            return (
+              <Card
+                key={story.id}
+                className="story-item"
+                title={story.title}
+                extra={
+                  statusMeta ? (
+                    <Tag color={statusMeta.color}>{statusMeta.text}</Tag>
+                  ) : null
+                }
+                variant="borderless"
+                onClick={() => handleStoryClick(story.id!)}
+                actions={[
+                  <DeleteOutlined
+                    key="remove"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeStory(story.id!);
+                    }}
+                  />,
+                  <EditOutlined
+                    key="edit"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      editStory(story.id!);
+                    }}
+                  />,
+                ]}
+              >
+                <div className="story-item-outline">{story.outline}</div>
+              </Card>
+            );
+          })}
           <div className="story-item story-item-add" onClick={() => handleStoryAdd()}>
             <PlusOutlined className="story-item-add-icon" />
           </div>
@@ -113,9 +135,14 @@ const StoryListPage: React.FC = () => {
         open={dialogOpen}
         story={editingStory}
         onCancel={handleDialogClose}
-        onSuccess={() => {
+        onSuccess={(createdStoryId) => {
           handleDialogClose();
-          void loadList();
+          if (createdStoryId) {
+            navigate(`/story/${createdStoryId}`);
+            return;
+          }else{
+            void loadList();
+          }
         }}
       />
     </>

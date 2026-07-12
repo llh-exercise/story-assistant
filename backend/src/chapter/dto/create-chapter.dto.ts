@@ -96,6 +96,20 @@ export class CreateChapterDto {
 
   sortOrder?: number;
 
+
+
+  /** 插在该同级节点之后；传入后忽略 parentId/sortOrder，与 after 同级并腾位 */
+
+  @ApiPropertyOptional({ description: '插在该节点之后的节点 ID', example: 3 })
+
+  @IsOptional()
+
+  @Type(() => Number)
+
+  @IsInt({ message: 'afterId 必须为整数' })
+
+  afterId?: number;
+
 }
 
 

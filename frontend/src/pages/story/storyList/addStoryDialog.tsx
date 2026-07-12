@@ -8,8 +8,8 @@ export type AddStoryDialogProps = {
   /** 传入时为编辑模式，不传为新增模式 */
   story?: Story | null;
   onCancel: () => void;
-  /** 提交成功后的回调（用于父组件刷新列表） */
-  onSuccess: () => void;
+  /** 提交成功后的回调；新增时传入创建的故事 id */
+  onSuccess: (createdStoryId?: number) => void;
 };
 
 type FormValues = {
@@ -52,12 +52,16 @@ const AddStoryDialog: React.FC<AddStoryDialogProps> = ({
       if (isEdit && story?.id) {
         await storyApi.updateStory(story.id, values);
         message.success('更新成功');
+        onSuccess();
       } else {
-        await storyApi.createStory(values);
-        message.success('创建成功');
+        const res = await storyApi.createStory(values);
+        message.success('创建成功，章节目录正在后台生成，请稍候');
+        if (res.code === 0 && res.data?.id) {
+          onSuccess(res.data.id);
+        } else {
+          onSuccess();
+        }
       }
-
-      onSuccess();
     } catch (error) {
       const isValidationError =
         typeof error === 'object' &&
@@ -94,7 +98,7 @@ const AddStoryDialog: React.FC<AddStoryDialogProps> = ({
           <Input.TextArea
             placeholder="可填写故事大纲或梗概"
             rows={5}
-            maxLength={4000}
+            maxLength={10000}
             showCount
           />
         </Form.Item>

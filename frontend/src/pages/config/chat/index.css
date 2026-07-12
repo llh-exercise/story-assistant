@@ -1,0 +1,160 @@
+.config-chat {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.config-chat__header {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.config-chat__title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.config-chat__desc {
+  margin-top: 4px;
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 12px;
+}
+
+.config-chat__list {
+  flex: 1;
+  min-height: 0;
+  padding: 16px 20px;
+  overflow-y: auto;
+}
+
+.config-chat__empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: rgba(0, 0, 0, 0.35);
+}
+
+.config-chat__bubble {
+  max-width: 80%;
+  margin-bottom: 16px;
+}
+
+.config-chat__bubble--user {
+  margin-left: auto;
+  text-align: right;
+}
+
+.config-chat__bubble--assistant {
+  margin-right: auto;
+}
+
+.config-chat__role {
+  margin-bottom: 4px;
+  color: rgba(0, 0, 0, 0.45);
+  font-size: 12px;
+}
+
+.config-chat__content {
+  display: inline-block;
+  padding: 10px 14px;
+  text-align: left;
+  white-space: pre-wrap;
+  word-break: break-word;
+  border-radius: 10px;
+  line-height: 1.6;
+}
+
+.config-chat__bubble--user .config-chat__content {
+  color: #fff;
+  background: #1677ff;
+}
+
+.config-chat__bubble--assistant .config-chat__content {
+  background: #f5f5f5;
+}
+
+/* Markdown 渲染：取消 pre-wrap，交给标签自身排版 */
+.config-chat__content--markdown {
+  display: block;
+  white-space: normal;
+}
+
+.config-chat__content--markdown > *:first-child {
+  margin-top: 0;
+}
+
+.config-chat__content--markdown > *:last-child {
+  margin-bottom: 0;
+}
+
+.config-chat__content--markdown p {
+  margin: 0 0 8px;
+}
+
+.config-chat__content--markdown strong {
+  font-weight: 700;
+}
+
+.config-chat__content--markdown ol,
+.config-chat__content--markdown ul {
+  margin: 0 0 8px;
+  padding-left: 1.4em;
+}
+
+.config-chat__content--markdown li {
+  margin: 2px 0;
+}
+
+.config-chat__content--markdown li > p {
+  margin: 0;
+}
+
+.config-chat__content--markdown h1,
+.config-chat__content--markdown h2,
+.config-chat__content--markdown h3,
+.config-chat__content--markdown h4 {
+  margin: 10px 0 6px;
+  font-size: 1em;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.config-chat__content--markdown code {
+  padding: 1px 4px;
+  font-size: 0.9em;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 4px;
+}
+
+.config-chat__content--markdown pre {
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  overflow-x: auto;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 6px;
+}
+
+.config-chat__content--markdown pre code {
+  padding: 0;
+  background: transparent;
+}
+
+.config-chat__composer {
+  display: flex;
+  flex-shrink: 0;
+  gap: 12px;
+  align-items: flex-end;
+  padding: 16px 20px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.config-chat__composer .ant-input-textarea {
+  flex: 1;
+}

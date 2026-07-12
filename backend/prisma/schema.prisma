@@ -32,6 +32,8 @@ model Story {
 
   chapters  Chapter[]
 
+  generationStatus String @default("idle")
+
 }
 
 

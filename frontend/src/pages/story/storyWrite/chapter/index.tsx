@@ -1,12 +1,20 @@
 import './index.css';
-import { Tree } from 'antd';
+import { Tree, message, Modal } from 'antd';
 import type { TreeDataNode } from 'antd';
-import { ProductOutlined } from '@ant-design/icons';
+import {
+    EditOutlined,
+    PlusOutlined,
+    DeleteOutlined,
+} from '@ant-design/icons';
 import { chapterApi } from '../../../../api/chapter';
+import { storyApi } from '../../../../api/story';
 import { ApiResponse } from '../../../../types/request';
 import type { Chapter } from '../../../../types/chapter';
-import { useState, useEffect } from 'react';
+import type { StoryGenerationStatus } from '../../../../types/story';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
+import ChapterEditDialog from './chapterEditDialog';
+import AddChapterDialog, { type AddChapterType } from './addChapterDialog';
 
 interface ChapterNode extends TreeDataNode {
     title: string;
@@ -14,13 +22,31 @@ interface ChapterNode extends TreeDataNode {
     children?: ChapterNode[];
 }
 
+type EditingChapter = {
+    id: number;
+    title: string;
+    isVolume: boolean;
+};
+
+type AddingChapter = {
+    type: AddChapterType;
+    afterId: number;
+};
+
 type ChapterProps = {
     onChapterClick: (chapterId: number, isVolume: boolean) => void;
 }
 
+const isGeneratingStatus = (status?: StoryGenerationStatus) =>
+    status === 'pending' || status === 'running';
+
 const Chapter: React.FC<ChapterProps> = ({ onChapterClick }) => {
     const [chapterList, setChapterList] = useState<ChapterNode[]>([]);
     const [selectedKeys, setSelectedKeys] = useState<React.Key[]>([]);
+    const [editOpen, setEditOpen] = useState(false);
+    const [editingChapter, setEditingChapter] = useState<EditingChapter | null>(null);
+    const [addOpen, setAddOpen] = useState(false);
+    const [addingChapter, setAddingChapter] = useState<AddingChapter | null>(null);
     const storyId = Number(useParams().id);
 
     const selectNode = (treeData: ChapterNode[], key: string) => {
@@ -32,7 +58,7 @@ const Chapter: React.FC<ChapterProps> = ({ onChapterClick }) => {
     /**
      * 加载章节列表
      */
-    const loadChapterList = async () => {
+    const loadChapterList = useCallback(async (autoSelectFirst = true) => {
         const res: ApiResponse<Chapter[]> = await chapterApi.getList(storyId);
         if (res.code === 0 && res.data) {
             const treeData: ChapterNode[] = res.data.map((volume) => ({
@@ -48,17 +74,157 @@ const Chapter: React.FC<ChapterProps> = ({ onChapterClick }) => {
 
             setChapterList(treeData);
 
-            if (treeData.length > 0) {
+            if (autoSelectFirst && treeData.length > 0) {
                 const selectedKey = String(treeData[0].key);
                 selectNode(treeData, selectedKey);
                 onChapterClick(Number(selectedKey), true);
             }
         }
-    };
+    }, [storyId]);
 
     useEffect(() => {
         void loadChapterList();
-    }, [storyId]);
+    }, [loadChapterList]);
+
+    /** 目录后台生成中时轮询刷新树 */
+    useEffect(() => {
+        let cancelled = false;
+        let timer: ReturnType<typeof setInterval> | undefined;
+
+        const tick = async () => {
+            if (cancelled) {
+                return;
+            }
+
+            try {
+                const statusRes = await storyApi.getGenerationStatus(storyId);
+                if (cancelled || statusRes.code !== 0) {
+                    return;
+                }
+
+                const status = statusRes.data;
+                if (isGeneratingStatus(status)) {
+                    message.info('正在生成章节，列表自动刷新中...');
+                    await loadChapterList(false);
+                    if (!timer) {
+                        timer = setInterval(() => {
+                            void tick();
+                        }, 3000);
+                    }
+                    return;
+                }
+
+                if (status === 'done') {
+                    await loadChapterList(false);
+                }
+
+                if (timer) {
+                    clearInterval(timer);
+                    timer = undefined;
+                }
+            } catch (error) {
+                console.error(error);
+            }
+        };
+
+        void tick();
+
+        return () => {
+            cancelled = true;
+            if (timer) {
+                clearInterval(timer);
+            }
+        };
+    }, [storyId, loadChapterList]);
+
+    /** 打开编辑名称弹窗 */
+    const handleEditClick = (
+        e: React.MouseEvent,
+        node: ChapterNode,
+    ) => {
+        e.stopPropagation();
+        setEditingChapter({
+            id: Number(node.key),
+            title: node.title,
+            isVolume: !node.isLeaf,
+        });
+        setEditOpen(true);
+    };
+
+    const handleEditCancel = () => {
+        setEditOpen(false);
+        setEditingChapter(null);
+    };
+
+    const handleEditSuccess = () => {
+        handleEditCancel();
+        void loadChapterList(false);
+    };
+
+    /** 在当前节点后插入同级卷/章 */
+    const handleAddClick = (
+        e: React.MouseEvent,
+        node: ChapterNode,
+    ) => {
+        e.stopPropagation();
+        setAddingChapter({
+            type: node.isLeaf ? 'chapter' : 'volume',
+            afterId: Number(node.key),
+        });
+        setAddOpen(true);
+    };
+
+    const handleAddCancel = () => {
+        setAddOpen(false);
+        setAddingChapter(null);
+    };
+
+    const handleAddSuccess = () => {
+        handleAddCancel();
+        void loadChapterList(false);
+    };
+
+    /** 删除卷或章节（先确认） */
+    const handleDeleteClick = (
+        e: React.MouseEvent,
+        node: ChapterNode,
+    ) => {
+        e.stopPropagation();
+
+        const id = Number(node.key);
+        const isVolume = !node.isLeaf;
+        const title = node.title;
+
+        Modal.confirm({
+            title: isVolume ? '确认删除该卷' : '确认删除该章节',
+            content: isVolume
+                ? `删除「${title}」后，其下所有章节也会一并删除，确定继续吗？`
+                : `确定删除「${title}」吗？删除后无法恢复。`,
+            okText: '删除',
+            okType: 'danger',
+            cancelText: '取消',
+            onOk: async () => {
+                try {
+                    await chapterApi.deleteChapter(id);
+                    message.success(isVolume ? '卷已删除' : '章节已删除');
+
+                    const wasSelected = selectedKeys.some(
+                        (key) => String(key) === String(id),
+                    );
+                    await loadChapterList(false);
+
+                    // 删除的是当前选中项时，清空中间编辑区
+                    if (wasSelected) {
+                        setSelectedKeys([]);
+                        onChapterClick(0, false);
+                    }
+                } catch (error) {
+                    console.error(error);
+                    message.error(isVolume ? '删除卷失败' : '删除章节失败');
+                }
+            },
+        });
+    };
 
     /**
      * 渲染章节节点标题
@@ -69,11 +235,28 @@ const Chapter: React.FC<ChapterProps> = ({ onChapterClick }) => {
                 <span className="chapter-node-title__text" title={node.title}>
                     {node.title}
                 </span>
-                <span
-                    className="chapter-node-title__btn"
-                    onClick={(e) => e.stopPropagation()}
+                <span className="chapter-node-title__actions">
+                    <span
+                        className="chapter-node-title__btn"
+                        title="编辑"
+                        onClick={(e) => handleEditClick(e, node)}
                     >
-                    {/* <ProductOutlined /> */}
+                        <EditOutlined />
+                    </span>
+                    <span
+                        className="chapter-node-title__btn"
+                        title="添加"
+                        onClick={(e) => handleAddClick(e, node)}
+                    >
+                        <PlusOutlined />
+                    </span>
+                    <span
+                        className="chapter-node-title__btn"
+                        title="删除"
+                        onClick={(e) => handleDeleteClick(e, node)}
+                    >
+                        <DeleteOutlined />
+                    </span>
                 </span>
             </div>
         );
@@ -103,6 +286,26 @@ const Chapter: React.FC<ChapterProps> = ({ onChapterClick }) => {
                 titleRender={renderNodeTitle}
                 onSelect={handleChapterSelect}
             />
+            {editingChapter ? (
+                <ChapterEditDialog
+                    open={editOpen}
+                    chapterId={editingChapter.id}
+                    title={editingChapter.title}
+                    isVolume={editingChapter.isVolume}
+                    onCancel={handleEditCancel}
+                    onSuccess={handleEditSuccess}
+                />
+            ) : null}
+            {addingChapter ? (
+                <AddChapterDialog
+                    open={addOpen}
+                    storyId={storyId}
+                    type={addingChapter.type}
+                    afterId={addingChapter.afterId}
+                    onCancel={handleAddCancel}
+                    onSuccess={handleAddSuccess}
+                />
+            ) : null}
         </div>
   );
 };
