@@ -7,11 +7,9 @@ import {
     DeleteOutlined,
 } from '@ant-design/icons';
 import { chapterApi } from '../../../../api/chapter';
-import { storyApi } from '../../../../api/story';
 import { ApiResponse } from '../../../../types/request';
 import type { Chapter } from '../../../../types/chapter';
-import type { StoryGenerationStatus } from '../../../../types/story';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import ChapterEditDialog from './chapterEditDialog';
 import AddChapterDialog, { type AddChapterType } from './addChapterDialog';
@@ -35,12 +33,11 @@ type AddingChapter = {
 
 type ChapterProps = {
     onChapterClick: (chapterId: number, isVolume: boolean) => void;
+    /** 目录正在生成时隐藏节点操作按钮，并轮询刷新列表 */
+    isGenerating?: boolean;
 }
 
-const isGeneratingStatus = (status?: StoryGenerationStatus) =>
-    status === 'pending' || status === 'running';
-
-const Chapter: React.FC<ChapterProps> = ({ onChapterClick }) => {
+const Chapter: React.FC<ChapterProps> = ({ onChapterClick, isGenerating = false }) => {
     const [chapterList, setChapterList] = useState<ChapterNode[]>([]);
     const [selectedKeys, setSelectedKeys] = useState<React.Key[]>([]);
     const [editOpen, setEditOpen] = useState(false);
@@ -48,6 +45,8 @@ const Chapter: React.FC<ChapterProps> = ({ onChapterClick }) => {
     const [addOpen, setAddOpen] = useState(false);
     const [addingChapter, setAddingChapter] = useState<AddingChapter | null>(null);
     const storyId = Number(useParams().id);
+    /** 上一轮是否在生成，用于判断生成结束时再拉一次最终列表 */
+    const prevIsGeneratingRef = useRef(false);
 
     const selectNode = (treeData: ChapterNode[], key: string) => {
         setSelectedKeys([key]);
@@ -86,56 +85,29 @@ const Chapter: React.FC<ChapterProps> = ({ onChapterClick }) => {
         void loadChapterList();
     }, [loadChapterList]);
 
-    /** 目录后台生成中时轮询刷新树 */
+    /** 根据父级 isGenerating 刷新目录树，不再单独查生成状态 */
     useEffect(() => {
-        let cancelled = false;
-        let timer: ReturnType<typeof setInterval> | undefined;
+        const wasGenerating = prevIsGeneratingRef.current;
+        prevIsGeneratingRef.current = isGenerating;
 
-        const tick = async () => {
-            if (cancelled) {
-                return;
+        if (isGenerating) {
+            if (!wasGenerating) {
+                message.info('正在生成章节，列表自动刷新中...');
             }
+            void loadChapterList(false);
 
-            try {
-                const statusRes = await storyApi.getGenerationStatus(storyId);
-                if (cancelled || statusRes.code !== 0) {
-                    return;
-                }
+            const timer = setInterval(() => {
+                void loadChapterList(false);
+            }, 3000);
 
-                const status = statusRes.data;
-                if (isGeneratingStatus(status)) {
-                    message.info('正在生成章节，列表自动刷新中...');
-                    await loadChapterList(false);
-                    if (!timer) {
-                        timer = setInterval(() => {
-                            void tick();
-                        }, 3000);
-                    }
-                    return;
-                }
+            return () => clearInterval(timer);
+        }
 
-                if (status === 'done') {
-                    await loadChapterList(false);
-                }
-
-                if (timer) {
-                    clearInterval(timer);
-                    timer = undefined;
-                }
-            } catch (error) {
-                console.error(error);
-            }
-        };
-
-        void tick();
-
-        return () => {
-            cancelled = true;
-            if (timer) {
-                clearInterval(timer);
-            }
-        };
-    }, [storyId, loadChapterList]);
+        // 从生成中变为结束时再拉一次最终列表
+        if (wasGenerating) {
+            void loadChapterList(false);
+        }
+    }, [isGenerating, loadChapterList]);
 
     /** 打开编辑名称弹窗 */
     const handleEditClick = (
@@ -235,29 +207,31 @@ const Chapter: React.FC<ChapterProps> = ({ onChapterClick }) => {
                 <span className="chapter-node-title__text" title={node.title}>
                     {node.title}
                 </span>
-                <span className="chapter-node-title__actions">
-                    <span
-                        className="chapter-node-title__btn"
-                        title="编辑"
-                        onClick={(e) => handleEditClick(e, node)}
-                    >
-                        <EditOutlined />
+                {!isGenerating ? (
+                    <span className="chapter-node-title__actions">
+                        <span
+                            className="chapter-node-title__btn"
+                            title="编辑"
+                            onClick={(e) => handleEditClick(e, node)}
+                        >
+                            <EditOutlined />
+                        </span>
+                        <span
+                            className="chapter-node-title__btn"
+                            title="添加"
+                            onClick={(e) => handleAddClick(e, node)}
+                        >
+                            <PlusOutlined />
+                        </span>
+                        <span
+                            className="chapter-node-title__btn"
+                            title="删除"
+                            onClick={(e) => handleDeleteClick(e, node)}
+                        >
+                            <DeleteOutlined />
+                        </span>
                     </span>
-                    <span
-                        className="chapter-node-title__btn"
-                        title="添加"
-                        onClick={(e) => handleAddClick(e, node)}
-                    >
-                        <PlusOutlined />
-                    </span>
-                    <span
-                        className="chapter-node-title__btn"
-                        title="删除"
-                        onClick={(e) => handleDeleteClick(e, node)}
-                    >
-                        <DeleteOutlined />
-                    </span>
-                </span>
+                ) : null}
             </div>
         );
     };

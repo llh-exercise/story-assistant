@@ -1,5 +1,8 @@
 import { del, get, patch, post } from './request';
-import type { Story, StoryGenerationStatus } from '../types/story';
+import type {
+  Story,
+  StoryGenerationStatusPayload,
+} from '../types/story';
 import { ApiResponse } from '../types/request';
 
 export type StoryPayload = Pick<Story, 'title' | 'outline'>;
@@ -14,7 +17,7 @@ export const storyApi = {
   },
   /** GET /api/stories/:id/generation-status */
   getGenerationStatus(id: number) {
-    return get<ApiResponse<StoryGenerationStatus>>(
+    return get<ApiResponse<StoryGenerationStatusPayload>>(
       `/stories/${id}/generation-status`,
     );
   },

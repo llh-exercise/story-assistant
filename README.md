@@ -94,62 +94,6 @@ DEEPSEEK_MODEL=deepseek-chat
 
 未配置 `DEEPSEEK_API_KEY` 时，创建故事后的 AI 目录生成与章节正文生成会失败。
 
-## 项目结构
-
-```
-story-assistant/
-├── backend/
-│   ├── prisma/schema.prisma    # 数据模型
-│   └── src/
-│       ├── stories/            # 故事 CRUD + 触发 AI 生成目录
-│       ├── chapter/            # 卷章 CRUD + 流式生成正文
-│       ├── ai/                 # DeepSeek 服务（目录 / 正文）
-│       ├── prisma/             # Prisma 模块
-│       └── common/             # 统一响应、异常过滤
-├── frontend/
-│   └── src/
-│       ├── pages/story/storyList/   # 故事列表
-│       ├── pages/story/storyWrite/ # 写作页
-│       │   ├── chapter/            # 左侧卷章树
-│       │   ├── juan/               # 卷细纲编辑
-│       │   └── write/              # 章细纲 + 正文编辑
-│       └── api/                    # 接口封装
-└── package.json                    # npm workspace 根配置
-```
-
-## 主要 API
-
-统一响应格式：`{ code, data, msg }`（流式生成接口除外）。
-
-### 故事 `/api/stories`
-
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/stories` | 故事列表 |
-| GET | `/stories/:id` | 故事详情 |
-| POST | `/stories` | 创建故事（并 AI 生成卷章目录） |
-| PATCH | `/stories/:id` | 更新故事 |
-| DELETE | `/stories/:id` | 删除故事 |
-
-### 卷章 `/api/chapters`
-
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | `/chapters/:storyId` | 获取某故事的卷章树 |
-| GET | `/chapters/chapter/:id` | 章节详情 |
-| POST | `/chapters` | 创建卷 / 章 |
-| PATCH | `/chapters/:id` | 更新细纲 / 正文等 |
-| DELETE | `/chapters/:id` | 删除 |
-| POST | `/chapters/:id/generate-content/stream` | 流式生成本章正文（`text/plain`） |
-
-流式生成请求体示例：
-
-```json
-{
-  "outline": "本章细纲（可为编辑器中未保存的内容）"
-}
-```
-
 ## 常用脚本
 
 ```bash
@@ -166,14 +110,6 @@ npm run prisma:generate -w backend
 npm run dev -w frontend
 npm run build -w frontend
 ```
-
-## 页面路由
-
-| 路径 | 页面 |
-|------|------|
-| `/` | 故事列表 |
-| `/story/:id` | 写作页 |
-| `/config` | 配置页（预留） |
 
 ## 开发说明
 

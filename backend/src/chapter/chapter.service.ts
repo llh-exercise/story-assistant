@@ -46,6 +46,7 @@ export class ChapterService {
    * 创建卷/章。
    * - 传 afterId：插到该同级节点后面，事务内将后续兄弟 sortOrder +1
    * - 不传：追加到同级末尾（或使用显式 sortOrder）
+   * - 新建卷（parentId 为 null）时，自动在其下创建默认第一章
    */
   async create(dto: CreateChapterDto) {
     return this.prisma.$transaction(async (tx) => {
@@ -84,7 +85,7 @@ export class ChapterService {
           (await this.getNextSortOrder(tx, dto.storyId, parentId));
       }
 
-      return tx.chapter.create({
+      const created = await tx.chapter.create({
         data: {
           storyId: dto.storyId,
           parentId,
@@ -94,6 +95,22 @@ export class ChapterService {
           sortOrder,
         },
       });
+
+      // 新增卷时自动挂一个默认章节，避免空卷无法写作
+      if (parentId == null) {
+        await tx.chapter.create({
+          data: {
+            storyId: dto.storyId,
+            parentId: created.id,
+            title: '第一章',
+            outline: '暂无',
+            content: '',
+            sortOrder: 0,
+          },
+        });
+      }
+
+      return created;
     });
   }
 

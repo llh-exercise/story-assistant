@@ -11,10 +11,12 @@ type ContentTextAreaRef = GetRef<typeof TextArea>;
 
 interface WriteProps {
   chapterId: number;
+  /** 目录正在生成时隐藏操作按钮 */
+  isGenerating?: boolean;
 }
 
 /** 章节点：细纲 + 正文 + 生成/保存 */
-const Write: React.FC<WriteProps> = ({ chapterId }) => {
+const Write: React.FC<WriteProps> = ({ chapterId, isGenerating = false }) => {
   const [outline, setOutline] = useState('');
   const [content, setContent] = useState('');
 
@@ -74,19 +76,21 @@ const Write: React.FC<WriteProps> = ({ chapterId }) => {
           showCount
         />
       </div>
-      <div className="story-write-middle">
-        <Button type="primary" onClick={handleSaveOutline}>
-          保存细纲
-        </Button>
-        <div className="story-write-middle-buttons">
-          <Button type="primary" onClick={handleGenerateContent}>
-            根据细纲生成内容
+      {!isGenerating ? (
+        <div className="story-write-middle">
+          <Button type="primary" onClick={handleSaveOutline}>
+            保存细纲
           </Button>
-          <Button type="primary" onClick={handleSaveContent}>
-            保存内容
-          </Button>
+          <div className="story-write-middle-buttons">
+            <Button type="primary" onClick={handleGenerateContent}>
+              根据细纲生成内容
+            </Button>
+            <Button type="primary" onClick={handleSaveContent}>
+              保存内容
+            </Button>
+          </div>
         </div>
-      </div>
+      ) : null}
       <div className="story-write-content">
         <TextArea
           className="story-write-textarea"

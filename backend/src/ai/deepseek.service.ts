@@ -28,7 +28,7 @@ JSON 结构（字段名必须一致）：
 - chapterCount 必须是正整数，表示该卷下计划有多少「章」（不是卷）。
 - 根据故事总纲合理规划卷数与每卷章节数；长篇可拆成多卷，每卷 chapterCount 建议 20~50。`;
 
-const VOLUME_CHAPTERS_SYSTEM_PROMPT = `你是网络小说编辑。用户给出故事背景、某一卷的信息，以及本批要生成的章节范围，请生成本批章节目录。
+const VOLUME_CHAPTERS_SYSTEM_PROMPT = `你是网络小说编辑。用户给出故事总纲、上一卷/当前卷/下一卷细纲，以及本批要生成的章节范围，请生成本批章节目录。
 
 【重要】你的回复只能是 JSON，不要 markdown 代码块，不要任何其它文字或解释。
 
@@ -38,7 +38,11 @@ JSON 结构（字段名必须一致）：
 规则：
 - chapters 数组长度必须等于用户要求的「本批生成章数」。
 - title 必须为非空字符串；outline 可为空字符串或可省略。
-- 章节标题不要与已有章节重复；情节需承接前文并符合本卷 outline。`;
+- 章节标题不要与已有章节重复。
+- 情节以「当前卷细纲」为唯一主依据；故事总纲仅作世界观与人物背景参考。
+- 严格只写当前卷范围内的情节，不得提前展开「下一卷细纲」中的主线与事件。
+- 若当前卷仅「埋线 / 决心进入 / 引出下一卷」，就停在该收束点，禁止写成下一卷已开始推进的内容。
+- 若有「上一卷细纲」，本批需自然承接其收束，且不要重复上一卷已写过的高潮。`;
 
 const CONTENT_SYSTEM_PROMPT = `你是网络小说作者。根据给出的故事背景与本章细纲，撰写本章正文。
 要求：
@@ -98,6 +102,14 @@ export class DeepSeekService {
     private readonly config: ConfigService,
   ) {}
 
+  /** 同步写入目录生成进度文案，供前端轮询展示 */
+  private async setGenerationMessage(storyId: number, message: string) {
+    await this.prisma.story.update({
+      where: { id: storyId },
+      data: { generationMessage: message },
+    });
+  }
+
   /** 分批：先规划卷，再按卷分批生成章节目录并写入 chapter 表 */
   async generateChapterList(
     storyId: number,
@@ -116,12 +128,13 @@ export class DeepSeekService {
 
     await this.prisma.chapter.deleteMany({ where: { storyId } });
 
+    await this.setGenerationMessage(storyId, '正在规划卷结构...');
     const volumePlan = await this.generateVolumePlan(model, storyName, outline);
     const allCreated: Chapter[] = [];
-    
-    this.logger.log(
-      `故事 #${storyId} 目录生成开始：共 ${volumePlan.volumes.length} 卷`,
-    );
+
+    const startMsg = `目录生成开始：共 ${volumePlan.volumes.length} 卷`;
+    this.logger.log(`故事 #${storyId} ${startMsg}`);
+    await this.setGenerationMessage(storyId, startMsg);
 
     for (let volumeIndex = 0; volumeIndex < volumePlan.volumes.length; volumeIndex++) {
       const volume = volumePlan.volumes[volumeIndex];
@@ -137,9 +150,9 @@ export class DeepSeekService {
       });
       allCreated.push(volumeRow);
 
-      this.logger.log(
-        `故事 #${storyId} 卷「${volume.title}」开始生成，计划 ${volume.chapterCount} 章`,
-      );
+      const volumeStartMsg = `卷「${volume.title}」开始生成，计划 ${volume.chapterCount} 章`;
+      this.logger.log(`故事 #${storyId} ${volumeStartMsg}`);
+      await this.setGenerationMessage(storyId, volumeStartMsg);
 
       let generatedInVolume = 0;
       const existingTitles: string[] = [];
@@ -156,6 +169,8 @@ export class DeepSeekService {
           storyName,
           outline,
           volume,
+          volumePlan.volumes[volumeIndex - 1] ?? null,
+          volumePlan.volumes[volumeIndex + 1] ?? null,
           volumeIndex + 1,
           startChapterNo,
           currentBatchSize,
@@ -186,9 +201,9 @@ export class DeepSeekService {
 
         generatedInVolume += chapters.length;
 
-        this.logger.log(
-          `故事 #${storyId} 卷「${volume.title}」进度 ${generatedInVolume}/${volume.chapterCount}`,
-        );
+        const progressMsg = `卷「${volume.title}」进度 ${generatedInVolume}/${volume.chapterCount}`;
+        this.logger.log(`故事 #${storyId} ${progressMsg}`);
+        await this.setGenerationMessage(storyId, progressMsg);
 
         if (chapters.length < currentBatchSize) {
           this.logger.warn(
@@ -199,9 +214,9 @@ export class DeepSeekService {
       }
     }
 
-    this.logger.log(
-      `故事 #${storyId} 目录生成完成，共 ${allCreated.length} 条（含卷）`,
-    );
+    const doneMsg = `目录生成完成，共 ${allCreated.length} 条（含卷）`;
+    this.logger.log(`故事 #${storyId} ${doneMsg}`);
+    await this.setGenerationMessage(storyId, doneMsg);
 
     return allCreated;
   }
@@ -378,6 +393,8 @@ export class DeepSeekService {
     storyName: string,
     storyOutline: string,
     volume: GeneratedVolumePlan,
+    prevVolume: GeneratedVolumePlan | null,
+    nextVolume: GeneratedVolumePlan | null,
     volumeNo: number,
     startChapterNo: number,
     batchSize: number,
@@ -388,6 +405,20 @@ export class DeepSeekService {
         ? existingTitles.map((title, index) => `${index + 1}. ${title}`).join('\n')
         : '（本卷尚无已生成章节）';
 
+    const formatVolumeBlock = (
+      label: string,
+      vol: GeneratedVolumePlan | null,
+      no: number | null,
+    ): string => {
+      if (!vol || no == null) {
+        return `${label}：（无）`;
+      }
+      return [
+        `${label}：第 ${no} 卷《${vol.title}》`,
+        `细纲：${vol.outline?.trim() || '（无）'}`,
+      ].join('\n');
+    };
+
     const parsed = await this.generateJsonFromModel(
       model,
       VOLUME_CHAPTERS_SYSTEM_PROMPT,
@@ -395,10 +426,14 @@ export class DeepSeekService {
         `故事名称：${storyName}`,
         `故事总纲：${storyOutline}`,
         '',
-        `当前卷序号：第 ${volumeNo} 卷`,
-        `卷名：${volume.title}`,
-        `卷概要：${volume.outline || '（无）'}`,
+        formatVolumeBlock('上一卷细纲', prevVolume, volumeNo > 1 ? volumeNo - 1 : null),
+        '',
+        formatVolumeBlock('当前卷细纲', volume, volumeNo),
         `本卷计划总章数：${volume.chapterCount}`,
+        '',
+        formatVolumeBlock('下一卷细纲', nextVolume, nextVolume ? volumeNo + 1 : null),
+        '',
+        '【边界约束】情节以当前卷细纲为准；不得提前写下一卷主线；需承接上一卷收束。',
         '',
         `本批请生成第 ${startChapterNo} ~ ${startChapterNo + batchSize - 1} 章，共 ${batchSize} 章。`,
         '',

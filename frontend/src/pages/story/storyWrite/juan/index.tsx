@@ -9,10 +9,12 @@ const { TextArea } = Input;
 
 interface JuanProps {
   chapterId: number;
+  /** 目录正在生成时隐藏操作按钮 */
+  isGenerating?: boolean;
 }
 
 /** 卷节点：仅编辑并保存卷细纲 */
-const Juan: React.FC<JuanProps> = ({ chapterId }) => {
+const Juan: React.FC<JuanProps> = ({ chapterId, isGenerating = false }) => {
   const [outline, setOutline] = useState('');
 
   const loadVolume = async () => {
@@ -33,11 +35,13 @@ const Juan: React.FC<JuanProps> = ({ chapterId }) => {
 
   return (
     <div className="story-juan">
-      <div className="story-juan-actions">
+      {!isGenerating ? (
+        <div className="story-juan-actions">
         <Button type="primary" onClick={handleSaveOutline}>
-          保存细纲
-        </Button>
-      </div>
+            保存细纲
+          </Button>
+        </div>
+      ) : null}
       <div className="story-juan-editor">
         <TextArea
           className="story-juan-textarea"

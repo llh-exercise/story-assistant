@@ -25,7 +25,7 @@ export class StoriesController {
   }
 
   @Get(':id/generation-status')
-  @ApiOperation({ summary: '获取故事目录生成状态' })
+  @ApiOperation({ summary: '获取故事目录生成状态与进度文案' })
   getGenerationStatus(@Param('id', ParseIntPipe) id: number) {
     return this.storiesService.getGenerationStatus(id);
   }

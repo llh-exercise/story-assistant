@@ -1,5 +1,5 @@
 import './index.css';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { storyApi } from '../../../api/story';
 import { Story, StoryGenerationStatus } from '../../../types/story';
 import { ApiResponse } from '../../../types/request';
@@ -33,6 +33,8 @@ const StoryPage: React.FC = () => {
   const id = Number(useParams().id);
   const [chapterId, setChapterId] = useState<number>(0);
   const [isVolume, setIsVolume] = useState(false);
+  /** 避免同一进度文案重复弹窗 */
+  const lastProgressMessageRef = useRef('');
 
   const loadStory = useCallback(async () => {
     const story: ApiResponse<Story> = await storyApi.getStoryById(id);
@@ -46,9 +48,10 @@ const StoryPage: React.FC = () => {
     void loadStory();
   }, [loadStory]);
 
-  /** 生成中轮询状态，完成后刷新 */
+  /** 生成中轮询状态，有新进度文案时 message 提示 */
   useEffect(() => {
     if (!isGeneratingStatus(generationStatus)) {
+      lastProgressMessageRef.current = '';
       return;
     }
 
@@ -57,7 +60,12 @@ const StoryPage: React.FC = () => {
         try {
           const res = await storyApi.getGenerationStatus(id);
           if (res.code === 0 && res.data) {
-            setGenerationStatus(res.data);
+            setGenerationStatus(res.data.status);
+            const progressMsg = res.data.message?.trim();
+            if (progressMsg && progressMsg !== lastProgressMessageRef.current) {
+              lastProgressMessageRef.current = progressMsg;
+              message.info(progressMsg);
+            }
           }
         } catch (error) {
           console.error(error);
@@ -78,6 +86,7 @@ const StoryPage: React.FC = () => {
         try {
           setRetrying(true);
           await storyApi.retryGenerateChapters(id);
+          lastProgressMessageRef.current = '';
           setGenerationStatus('pending');
           message.success('已开始重新生成章节目录');
         } catch (error) {
@@ -95,14 +104,16 @@ const StoryPage: React.FC = () => {
     setIsVolume(volume);
   }, []);
 
+  const isGenerating = isGeneratingStatus(generationStatus);
+
   const renderCenter = () => {
     if (!chapterId) {
       return null;
     }
     if (isVolume) {
-      return <Juan chapterId={chapterId} />;
+      return <Juan chapterId={chapterId} isGenerating={isGenerating} />;
     }
-    return <Write chapterId={chapterId} />;
+    return <Write chapterId={chapterId} isGenerating={isGenerating} />;
   };
 
   const statusMeta = GENERATION_STATUS_META[generationStatus];
@@ -130,7 +141,10 @@ const StoryPage: React.FC = () => {
           ) : null}
         </div>
         <div className="story-page-left-content">
-          <Chapter onChapterClick={handleChapterClick} />
+          <Chapter
+            onChapterClick={handleChapterClick}
+            isGenerating={isGenerating}
+          />
         </div>
       </div>
       <div className="story-page-center">{renderCenter()}</div>

@@ -32,7 +32,11 @@ model Story {
 
   chapters  Chapter[]
 
+  /// 目录生成状态：idle / pending / running / done / failed
   generationStatus String @default("idle")
+
+  /// 目录生成进度文案（供前端轮询展示）
+  generationMessage String @default("")
 
 }
 

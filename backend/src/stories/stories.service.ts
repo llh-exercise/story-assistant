@@ -41,6 +41,7 @@ export class StoriesService {
         title: dto.title,
         outline: dto.outline,
         generationStatus: 'pending',
+        generationMessage: '等待生成...',
       },
     });
 
@@ -68,7 +69,10 @@ export class StoriesService {
 
   async getGenerationStatus(id: number) {
     const story = await this.findOne(id);
-    return story.generationStatus;
+    return {
+      status: story.generationStatus,
+      message: story.generationMessage,
+    };
   }
 
   /** 生成失败后整本重新生成章节目录 */
@@ -87,7 +91,10 @@ export class StoriesService {
 
     await this.prisma.story.update({
       where: { id },
-      data: { generationStatus: 'pending' },
+      data: {
+        generationStatus: 'pending',
+        generationMessage: '等待重新生成...',
+      },
     });
 
     void this.runGenerateChapterList(story.id, story.title, story.outline);
@@ -108,7 +115,10 @@ export class StoriesService {
     try {
       await this.prisma.story.update({
         where: { id: storyId },
-        data: { generationStatus: 'running' },
+        data: {
+          generationStatus: 'running',
+          generationMessage: '目录生成中...',
+        },
       });
       await this.deepSeekService.generateChapterList(storyId, title, outline);
       await this.prisma.story.update({
@@ -122,7 +132,11 @@ export class StoriesService {
       );
       await this.prisma.story.update({
         where: { id: storyId },
-        data: { generationStatus: 'failed' },
+        data: {
+          generationStatus: 'failed',
+          generationMessage:
+            error instanceof Error ? error.message : '目录生成失败',
+        },
       });
     } finally {
       this.generatingStoryIds.delete(storyId);
